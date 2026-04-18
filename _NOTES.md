@@ -13,11 +13,25 @@ uv run pipeline-analysis/usage_stats.py
 
 # Operational warning/error summary (operational_log)
 uv run pipeline-analysis/operational_log_report.py --days 30 --limit 10
+
+# Provider failure summary by tool/context/model
+uv run pipeline-analysis/provider_failure_report.py --days 7 --limit 10
+
+# Recent provider failure events with optional filters
+uv run pipeline-analysis/provider_failure_recent.py --hours 24 --limit 30
 ```
 
 ---
 
 ## Changes Log
+
+### 2026-04-18 — Added provider-focused operational analysis scripts
+
+**Changed:** Added `pipeline-analysis/provider_failure_report.py` (aggregated provider failures by tool, run context, and model) and `pipeline-analysis/provider_failure_recent.py` (recent event feed with `--tool` / `--context` filters).
+
+**Because:** Provider-layer logging in `local-first-common` now emits structured contexts (`provider_*`), and these scripts give fast access to those signals for debugging failed runs.
+
+**Learned:** Combining an aggregate view and an event view makes it easier to move from trend detection to root-cause investigation.
 
 ### 2026-04-18 — Added operational warning/error reporting script
 
