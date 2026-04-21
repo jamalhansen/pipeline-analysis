@@ -25,6 +25,14 @@ uv run pipeline-analysis/provider_failure_recent.py --hours 24 --limit 30
 
 ## Changes Log
 
+### 2026-04-20 — Split operational reports back out from processing telemetry
+
+**Changed:** Updated `operational_log_report.py`, `provider_failure_report.py`, and `provider_failure_recent.py` to default to `~/sync/logging/error_log.duckdb` and `LOCAL_FIRST_ERROR_LOG_DB`, while `usage_stats.py` now points back to `~/sync/local-first/processing_log.duckdb` and `LOCAL_FIRST_TRACKING_DB`.
+
+**Because:** Operational reports query `operational_log`, while usage stats query `processing_log`. Pointing both sets of scripts at the same default file made the file/table distinction harder to reason about and caused avoidable confusion.
+
+**Learned:** Report defaults should follow the table they query. File-level convenience is not worth mixing operational and processing storage by accident.
+
 ### 2026-04-18 — Added provider-focused operational analysis scripts
 
 **Changed:** Added `pipeline-analysis/provider_failure_report.py` (aggregated provider failures by tool, run context, and model) and `pipeline-analysis/provider_failure_recent.py` (recent event feed with `--tool` / `--context` filters).
@@ -41,7 +49,7 @@ uv run pipeline-analysis/provider_failure_recent.py --hours 24 --limit 30
 - recurring exception types
 - most common failing modules (`ERROR` + `CRITICAL`)
 
-The script accepts `--db-path`, `--days`, `--limit`, and `--verbose` and defaults to `LOCAL_FIRST_TRACKING_DB` or `~/sync/local-first/processing_log.duckdb`.
+The script accepts `--db-path`, `--days`, `--limit`, and `--verbose` and defaults to `LOCAL_FIRST_ERROR_LOG_DB` or `~/sync/logging/error_log.duckdb`.
 
 **Because:** The remediation plan called for a lightweight operational analysis script after central warning/error persistence was added.
 

@@ -7,6 +7,7 @@
 
 import argparse
 import os
+from collections import Counter
 from pathlib import Path
 
 import duckdb
@@ -14,60 +15,138 @@ from rich.console import Console
 from rich.table import Table
 
 
-DEFAULT_DB_PATH = Path("~/sync/local-first/processing_log.duckdb").expanduser()
+DEFAULT_DB_PATH = Path("~/sync/logging/error_log.duckdb").expanduser()
+
+
+def _normalize_db_path(path: Path, default_filename: str) -> Path:
+    if path.exists() and path.is_dir():
+        return path / default_filename
+    if path.suffix.lower() == ".duckdb":
+        return path
+    if not path.suffix:
+        return path / default_filename
+    return path
 
 
 def _resolve_db_path(cli_value: str | None) -> Path:
     if cli_value:
-        return Path(cli_value).expanduser()
-    if env := os.environ.get("LOCAL_FIRST_TRACKING_DB"):
-        return Path(env).expanduser()
+        return _normalize_db_path(
+            Path(cli_value).expanduser(), default_filename="error_log.duckdb"
+        )
+    if env := os.environ.get("LOCAL_FIRST_ERROR_LOG_DB"):
+        return _normalize_db_path(
+            Path(env).expanduser(), default_filename="error_log.duckdb"
+        )
     return DEFAULT_DB_PATH
 
 
-def _top_warning_tools(con: duckdb.DuckDBPyConnection, days: int, limit: int):
-    query = """
+def _top_warning_tools_query(table_name: str) -> str:
+    if table_name == "operational_log":
+        return """
+        SELECT
+            COALESCE(tool_name, '(unknown)') AS tool_name,
+            COUNT(*) AS warning_count
+        FROM operational_log
+        WHERE created_at >= CURRENT_TIMESTAMP - (? * INTERVAL '1 day')
+        GROUP BY 1
+        ORDER BY warning_count DESC
+        LIMIT ?
+        """
+
+    return """
     SELECT
         COALESCE(tool_name, '(unknown)') AS tool_name,
         COUNT(*) AS warning_count
-    FROM operational_log
+    FROM processing_log
     WHERE created_at >= CURRENT_TIMESTAMP - (? * INTERVAL '1 day')
+      AND (
+          COALESCE(xml_fallbacks, 0) > 0
+          OR COALESCE(parse_errors, 0) > 0
+          OR COALESCE(success, TRUE) = FALSE
+      )
     GROUP BY 1
     ORDER BY warning_count DESC
     LIMIT ?
     """
-    return con.execute(query, [days, limit]).fetchall()
 
 
-def _recurring_exception_types(con: duckdb.DuckDBPyConnection, days: int, limit: int):
-    query = """
+def _recurring_exception_types_query(table_name: str) -> str:
+    if table_name == "operational_log":
+        return """
+        SELECT
+            exception_type,
+            COUNT(*) AS occurrences
+        FROM operational_log
+        WHERE created_at >= CURRENT_TIMESTAMP - (? * INTERVAL '1 day')
+          AND exception_type IS NOT NULL
+          AND exception_type <> ''
+        GROUP BY 1
+        ORDER BY occurrences DESC
+        LIMIT ?
+        """
+
+    return """
     SELECT
-        exception_type,
+        COALESCE(
+            NULLIF(
+                regexp_extract(COALESCE(error_message, ''), '^([A-Za-z_][A-Za-z0-9_\\.]*)[: ]', 1),
+                ''
+            ),
+            '(unknown)'
+        ) AS exception_type,
         COUNT(*) AS occurrences
-    FROM operational_log
+    FROM processing_log
     WHERE created_at >= CURRENT_TIMESTAMP - (? * INTERVAL '1 day')
-      AND exception_type IS NOT NULL
-      AND exception_type <> ''
+      AND error_message IS NOT NULL
+      AND error_message <> ''
     GROUP BY 1
     ORDER BY occurrences DESC
     LIMIT ?
     """
-    return con.execute(query, [days, limit]).fetchall()
 
 
-def _most_failing_modules(con: duckdb.DuckDBPyConnection, days: int, limit: int):
-    query = """
+def _most_failing_context_query(table_name: str) -> str:
+    if table_name == "operational_log":
+        return """
+        SELECT
+            COALESCE(module, '(unknown)') AS module_name,
+            COUNT(*) AS error_count
+        FROM operational_log
+        WHERE created_at >= CURRENT_TIMESTAMP - (? * INTERVAL '1 day')
+          AND level IN ('ERROR', 'CRITICAL')
+        GROUP BY 1
+        ORDER BY error_count DESC
+        LIMIT ?
+        """
+
+    return """
     SELECT
-        COALESCE(module, '(unknown)') AS module_name,
-        COUNT(*) AS error_count
-    FROM operational_log
+        tool_name,
+        source_location
+    FROM processing_log
     WHERE created_at >= CURRENT_TIMESTAMP - (? * INTERVAL '1 day')
-      AND level IN ('ERROR', 'CRITICAL')
-    GROUP BY 1
-    ORDER BY error_count DESC
-    LIMIT ?
+      AND COALESCE(success, TRUE) = FALSE
     """
-    return con.execute(query, [days, limit]).fetchall()
+
+
+def _resolve_log_table(con: duckdb.DuckDBPyConnection) -> str | None:
+    tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+    if "operational_log" in tables:
+        return "operational_log"
+    if "processing_log" in tables:
+        return "processing_log"
+    return None
+
+
+def _aggregate_processing_fail_contexts(rows: list[tuple], limit: int) -> list[tuple]:
+    counter: Counter[tuple[str, str]] = Counter()
+    for tool_name, source_location in rows:
+        tool = tool_name or "(unknown-tool)"
+        source = source_location or "(missing source_location)"
+        counter[(tool, source)] += 1
+    return [
+        (tool, source, count) for (tool, source), count in counter.most_common(limit)
+    ]
 
 
 def _print_table(console: Console, title: str, columns: list[str], rows: list[tuple]):
@@ -94,18 +173,37 @@ def run_report(db_path: Path, days: int, limit: int, verbose: bool = False) -> i
 
     con = duckdb.connect(str(db_path), read_only=True)
     try:
-        tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
-        if "operational_log" not in tables:
-            console.print("Table operational_log not found in the selected DB.")
+        table_name = _resolve_log_table(con)
+        if table_name is None:
+            console.print(
+                "Table operational_log/processing_log not found in the selected DB."
+            )
             return 1
 
-        if verbose:
-            total = con.execute("SELECT COUNT(*) FROM operational_log").fetchone()[0]
-            console.print(f"Operational rows available: {total}")
+        console.print(f"DB: {db_path}")
 
-        warning_rows = _top_warning_tools(con, days, limit)
-        exception_rows = _recurring_exception_types(con, days, limit)
-        module_rows = _most_failing_modules(con, days, limit)
+        if verbose:
+            total = con.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+            console.print(f"Rows available in {table_name}: {total}")
+
+        warning_rows = con.execute(
+            _top_warning_tools_query(table_name), [days, limit]
+        ).fetchall()
+        exception_rows = con.execute(
+            _recurring_exception_types_query(table_name),
+            [days, limit],
+        ).fetchall()
+        if table_name == "operational_log":
+            context_rows = con.execute(
+                _most_failing_context_query(table_name),
+                [days, limit],
+            ).fetchall()
+        else:
+            raw_context_rows = con.execute(
+                _most_failing_context_query(table_name),
+                [days],
+            ).fetchall()
+            context_rows = _aggregate_processing_fail_contexts(raw_context_rows, limit)
     finally:
         con.close()
 
@@ -121,12 +219,20 @@ def run_report(db_path: Path, days: int, limit: int, verbose: bool = False) -> i
         ["Exception Type", "Occurrences"],
         exception_rows,
     )
-    _print_table(
-        console,
-        f"Most Common Failing Modules (last {days} days)",
-        ["Module", "Errors"],
-        module_rows,
-    )
+    if table_name == "operational_log":
+        _print_table(
+            console,
+            f"Most Common Failing Modules (last {days} days)",
+            ["Module", "Errors"],
+            context_rows,
+        )
+    else:
+        _print_table(
+            console,
+            f"Most Common Failing Sources (last {days} days)",
+            ["Tool", "Source Location", "Errors"],
+            context_rows,
+        )
     return 0
 
 
@@ -138,7 +244,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "-b",
         "--db-path",
         default=None,
-        help="Path to DuckDB file (default: LOCAL_FIRST_TRACKING_DB or ~/sync/local-first/processing_log.duckdb)",
+        help="Path to DuckDB file (default: LOCAL_FIRST_ERROR_LOG_DB or ~/sync/logging/error_log.duckdb)",
     )
     parser.add_argument(
         "-d",

@@ -17,14 +17,28 @@ import duckdb
 from rich.console import Console
 from rich.table import Table
 
-DEFAULT_DB_PATH = Path("~/sync/local-first/processing_log.duckdb").expanduser()
+DEFAULT_DB_PATH = Path("~/sync/logging/error_log.duckdb").expanduser()
+
+
+def _normalize_db_path(path: Path, default_filename: str) -> Path:
+    if path.exists() and path.is_dir():
+        return path / default_filename
+    if path.suffix.lower() == ".duckdb":
+        return path
+    if not path.suffix:
+        return path / default_filename
+    return path
 
 
 def resolve_db_path(cli_value: str | None) -> Path:
     if cli_value:
-        return Path(cli_value).expanduser()
-    if env := os.environ.get("LOCAL_FIRST_TRACKING_DB"):
-        return Path(env).expanduser()
+        return _normalize_db_path(
+            Path(cli_value).expanduser(), default_filename="error_log.duckdb"
+        )
+    if env := os.environ.get("LOCAL_FIRST_ERROR_LOG_DB"):
+        return _normalize_db_path(
+            Path(env).expanduser(), default_filename="error_log.duckdb"
+        )
     return DEFAULT_DB_PATH
 
 
@@ -143,7 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
         "-b",
         "--db-path",
         default=None,
-        help="Path to DuckDB file (default: LOCAL_FIRST_TRACKING_DB or ~/sync/local-first/processing_log.duckdb)",
+        help="Path to DuckDB file (default: LOCAL_FIRST_ERROR_LOG_DB or ~/sync/logging/error_log.duckdb)",
     )
     parser.add_argument(
         "-d",
