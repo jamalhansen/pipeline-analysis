@@ -1,0 +1,18 @@
+[project]
+name = "pipeline-analysis"
+version = "0.1.0"
+description = "Workspace telemetry and operational health analysis scripts."
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb>=1.0.0",
+    "rich>=14.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -22,3 +22,11 @@ wheels/
 # Local dev
 .env
 .envrc
+_NOTES.md
+
+# Workspace standard ignores
+*.pyc
+*.pyd
+*.pyo
+CLAUDE.md
+uv.toml
