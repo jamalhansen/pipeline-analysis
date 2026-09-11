@@ -14,7 +14,6 @@ import duckdb
 from rich.console import Console
 from rich.table import Table
 
-
 DEFAULT_DB_PATH = Path("~/sync/logging/error_log.duckdb").expanduser()
 
 

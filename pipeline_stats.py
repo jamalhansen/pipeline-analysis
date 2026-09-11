@@ -5,10 +5,12 @@
 # ]
 # ///
 
+import os
+
 import duckdb
 from rich.console import Console
 from rich.table import Table
-import os
+
 
 def run_pipeline_stats():
     # Expand user paths
@@ -29,7 +31,7 @@ def run_pipeline_stats():
         con.execute(f"ATTACH '{db_paths['social']}' AS social (TYPE sqlite);")
         if os.path.exists(db_paths['tutor']):
             con.execute(f"ATTACH '{db_paths['tutor']}' AS tutor (TYPE sqlite);")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - any of several external DBs may be missing/locked; report and bail rather than crash
         print(f"Error attaching databases: {e}")
         return
 

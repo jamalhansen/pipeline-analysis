@@ -14,13 +14,12 @@ import pytest
 # Add parent directory to path so we can import script modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from usage_stats import _normalize_db_path as usage_normalize
-from usage_stats import resolve_db_path as usage_resolve_db_path
 from operational_log_report import _normalize_db_path as ops_normalize
 from operational_log_report import _resolve_db_path as ops_resolve_db_path
 from provider_failure_report import resolve_db_path as failure_resolve_db_path
-from provider_failure_report import top_tools, top_contexts
-
+from provider_failure_report import top_contexts, top_tools
+from usage_stats import _normalize_db_path as usage_normalize
+from usage_stats import resolve_db_path as usage_resolve_db_path
 
 # --- _normalize_db_path tests (shared logic across scripts) ---
 
