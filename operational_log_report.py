@@ -29,13 +29,9 @@ def _normalize_db_path(path: Path, default_filename: str) -> Path:
 
 def _resolve_db_path(cli_value: str | None) -> Path:
     if cli_value:
-        return _normalize_db_path(
-            Path(cli_value).expanduser(), default_filename="error_log.duckdb"
-        )
+        return _normalize_db_path(Path(cli_value).expanduser(), default_filename="error_log.duckdb")
     if env := os.environ.get("LOCAL_FIRST_ERROR_LOG_DB"):
-        return _normalize_db_path(
-            Path(env).expanduser(), default_filename="error_log.duckdb"
-        )
+        return _normalize_db_path(Path(env).expanduser(), default_filename="error_log.duckdb")
     return DEFAULT_DB_PATH
 
 
@@ -143,9 +139,7 @@ def _aggregate_processing_fail_contexts(rows: list[tuple], limit: int) -> list[t
         tool = tool_name or "(unknown-tool)"
         source = source_location or "(missing source_location)"
         counter[(tool, source)] += 1
-    return [
-        (tool, source, count) for (tool, source), count in counter.most_common(limit)
-    ]
+    return [(tool, source, count) for (tool, source), count in counter.most_common(limit)]
 
 
 def _print_table(console: Console, title: str, columns: list[str], rows: list[tuple]):
@@ -174,9 +168,7 @@ def run_report(db_path: Path, days: int, limit: int, verbose: bool = False) -> i
     try:
         table_name = _resolve_log_table(con)
         if table_name is None:
-            console.print(
-                "Table operational_log/processing_log not found in the selected DB."
-            )
+            console.print("Table operational_log/processing_log not found in the selected DB.")
             return 1
 
         console.print(f"DB: {db_path}")
@@ -185,9 +177,7 @@ def run_report(db_path: Path, days: int, limit: int, verbose: bool = False) -> i
             total = con.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
             console.print(f"Rows available in {table_name}: {total}")
 
-        warning_rows = con.execute(
-            _top_warning_tools_query(table_name), [days, limit]
-        ).fetchall()
+        warning_rows = con.execute(_top_warning_tools_query(table_name), [days, limit]).fetchall()
         exception_rows = con.execute(
             _recurring_exception_types_query(table_name),
             [days, limit],
@@ -277,9 +267,7 @@ def main() -> int:
     if args.limit <= 0:
         parser.error("--limit must be greater than 0")
 
-    return run_report(
-        _resolve_db_path(args.db_path), args.days, args.limit, args.verbose
-    )
+    return run_report(_resolve_db_path(args.db_path), args.days, args.limit, args.verbose)
 
 
 if __name__ == "__main__":

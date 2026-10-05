@@ -27,9 +27,7 @@ def _normalize_db_path(path: Path, default_filename: str) -> Path:
 
 def resolve_db_path() -> Path:
     if env := os.environ.get("LOCAL_FIRST_TRACKING_DB"):
-        candidate = _normalize_db_path(
-            Path(env).expanduser(), default_filename="processing_log.duckdb"
-        )
+        candidate = _normalize_db_path(Path(env).expanduser(), default_filename="processing_log.duckdb")
         if candidate.exists() or not DEFAULT_DB_PATH.exists():
             return candidate
     return DEFAULT_DB_PATH

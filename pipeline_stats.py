@@ -29,7 +29,7 @@ def run_pipeline_stats():
         con.execute(f"ATTACH '{db_paths['discovery']}' AS discovery (TYPE sqlite);")
         con.execute(f"ATTACH '{db_paths['triage']}' AS triage (TYPE sqlite);")
         con.execute(f"ATTACH '{db_paths['social']}' AS social (TYPE sqlite);")
-        if os.path.exists(db_paths['tutor']):
+        if os.path.exists(db_paths["tutor"]):
             con.execute(f"ATTACH '{db_paths['tutor']}' AS tutor (TYPE sqlite);")
     except Exception as e:  # noqa: BLE001 - any of several external DBs may be missing/locked; report and bail rather than crash
         print(f"Error attaching databases: {e}")
@@ -43,8 +43,8 @@ def run_pipeline_stats():
     UNION ALL
     SELECT 'social', status, COUNT(*) FROM social.candidates GROUP BY status
     """
-    
-    if os.path.exists(db_paths['tutor']):
+
+    if os.path.exists(db_paths["tutor"]):
         query += """
         UNION ALL
         SELECT 'study', 'mastered', COUNT(*) FROM tutor.cards WHERE consecutive_correct >= 5
@@ -70,6 +70,7 @@ def run_pipeline_stats():
         table.add_row(row[0], str(row[1]), str(row[2]))
 
     console.print(table)
+
 
 if __name__ == "__main__":
     run_pipeline_stats()

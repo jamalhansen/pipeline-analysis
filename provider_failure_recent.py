@@ -32,13 +32,9 @@ def _normalize_db_path(path: Path, default_filename: str) -> Path:
 
 def resolve_db_path(cli_value: str | None) -> Path:
     if cli_value:
-        return _normalize_db_path(
-            Path(cli_value).expanduser(), default_filename="error_log.duckdb"
-        )
+        return _normalize_db_path(Path(cli_value).expanduser(), default_filename="error_log.duckdb")
     if env := os.environ.get("LOCAL_FIRST_ERROR_LOG_DB"):
-        return _normalize_db_path(
-            Path(env).expanduser(), default_filename="error_log.duckdb"
-        )
+        return _normalize_db_path(Path(env).expanduser(), default_filename="error_log.duckdb")
     return DEFAULT_DB_PATH
 
 

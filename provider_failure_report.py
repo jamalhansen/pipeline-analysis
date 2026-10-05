@@ -32,13 +32,9 @@ def _normalize_db_path(path: Path, default_filename: str) -> Path:
 
 def resolve_db_path(cli_value: str | None) -> Path:
     if cli_value:
-        return _normalize_db_path(
-            Path(cli_value).expanduser(), default_filename="error_log.duckdb"
-        )
+        return _normalize_db_path(Path(cli_value).expanduser(), default_filename="error_log.duckdb")
     if env := os.environ.get("LOCAL_FIRST_ERROR_LOG_DB"):
-        return _normalize_db_path(
-            Path(env).expanduser(), default_filename="error_log.duckdb"
-        )
+        return _normalize_db_path(Path(env).expanduser(), default_filename="error_log.duckdb")
     return DEFAULT_DB_PATH
 
 
@@ -87,9 +83,7 @@ def top_models(con: duckdb.DuckDBPyConnection, days: int, limit: int) -> list[tu
     return con.execute(query, [days, limit]).fetchall()
 
 
-def print_table(
-    console: Console, title: str, columns: list[str], rows: list[tuple]
-) -> None:
+def print_table(console: Console, title: str, columns: list[str], rows: list[tuple]) -> None:
     table = Table(title=title)
     for index, column in enumerate(columns):
         justify = "right" if index > 0 else "left"
@@ -191,9 +185,7 @@ def main() -> int:
     if args.limit <= 0:
         parser.error("--limit must be greater than 0")
 
-    return run_report(
-        resolve_db_path(args.db_path), args.days, args.limit, args.verbose
-    )
+    return run_report(resolve_db_path(args.db_path), args.days, args.limit, args.verbose)
 
 
 if __name__ == "__main__":

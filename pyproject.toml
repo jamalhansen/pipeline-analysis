@@ -20,3 +20,6 @@ testpaths = ["tests"]
 [tool.fleet.exempt]
 tracking = "analysis scripts that read processing_log; they aren't fleet runs"
 layout = "a folder of standalone report scripts, not an installable package"
+
+[tool.ruff]
+line-length = 120
