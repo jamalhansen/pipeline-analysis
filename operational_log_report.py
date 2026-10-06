@@ -174,7 +174,7 @@ def run_report(db_path: Path, days: int, limit: int, verbose: bool = False) -> i
         console.print(f"DB: {db_path}")
 
         if verbose:
-            total = con.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+            total = (con.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone() or (0,))[0]
             console.print(f"Rows available in {table_name}: {total}")
 
         warning_rows = con.execute(_top_warning_tools_query(table_name), [days, limit]).fetchall()

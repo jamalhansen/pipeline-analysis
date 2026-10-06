@@ -113,7 +113,7 @@ def run_report(db_path: Path, days: int, limit: int, verbose: bool = False) -> i
             return 1
 
         if verbose:
-            total = con.execute("SELECT COUNT(*) FROM operational_log").fetchone()[0]
+            total = (con.execute("SELECT COUNT(*) FROM operational_log").fetchone() or (0,))[0]
             console.print(f"Operational rows available: {total}")
 
         tool_rows = top_tools(con, days, limit)

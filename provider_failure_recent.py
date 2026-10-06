@@ -88,7 +88,7 @@ def run_report(
             return 1
 
         if verbose:
-            total = con.execute("SELECT COUNT(*) FROM operational_log").fetchone()[0]
+            total = (con.execute("SELECT COUNT(*) FROM operational_log").fetchone() or (0,))[0]
             console.print(f"Operational rows available: {total}")
 
         rows = fetch_recent(con, hours, limit, tool_name, context_filter)
